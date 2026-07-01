@@ -21,16 +21,6 @@ With 4 people in parallel, the critical path through the calendar is roughly **4
 
 If we hit that gate, everything after is upside. If we don't, we stop adding features and fix the core. RAG only gets wired in *after* this gate is green.
 
-## Team & ownership (4 people)
-
-| Dev | Owns | Primary deliverables |
-|---|---|---|
-| **Dev 1 — Backend Lead** | Orchestrator, agent loop, shared state | `CaseState` object, turn engine, the API-call-per-agent function, jury fan-out |
-| **Dev 2 — RAG / Data** | Vector DB, ingestion, retrieval, citation validation | Chunking + embedding pipeline, retrieval function, the validation gate |
-| **Dev 3 — Frontend** | Courtroom transcript UI | Live streaming transcript, role badges, vote tally panel, verdict view |
-| **Dev 4 — Prompts / Integration / Demo** | Agent system prompts, verdict generator, demo + pitch | Per-agent prompts, verdict doc generator, demo cases, backup recording, deck |
-
-**Glue rule:** Dev 1 and Dev 2 agree the JSON schema in the first 2 hours and freeze it. Dev 3 and Dev 4 build against that frozen schema with stubbed data so nobody is blocked waiting.
 
 ## Milestones
 
