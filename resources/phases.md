@@ -1,4 +1,4 @@
-# phases.md — AI Courtroom: Phased Execution Plan
+ phases.md — AI Courtroom: Phased Execution Plan
 
 48-hour hackathon, 4 developers. Hour bands are guidance, not handcuffs — but **M2 at hour 24 is a hard gate** (see roadmap.md).
 
