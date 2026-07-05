@@ -2,8 +2,9 @@ import asyncio
 from typing import Callable, List, Optional, Union, Dict, Any
 from interfaces import CaseState, AgentOutput, Chunk
 
-# Import the mocks
-from mocks import run_agent, retrieve, validate_citations
+# Import the real agent runtime
+from agent_runtime import run_agent
+from mocks import retrieve, validate_citations
 
 NUM_ARGUMENT_ROUNDS = 1
 NUM_JURORS = 5
@@ -57,7 +58,11 @@ async def execute_agent_turn(
     on_event: Optional[Callable[[str, Union[AgentOutput, dict]], None]] = None
 ) -> AgentOutput:
     """Executes a single agent's turn with retrieval, validation, and retry logic."""
-    system_prompt = f"You are acting as {role} during the {phase} phase."
+    from prompts_trial import get_system_prompt
+    if role in ["judge", "prosecution", "defense"]:
+        system_prompt = get_system_prompt(role, phase, state.case_text)
+    else:
+        system_prompt = f"You are acting as {role} during the {phase} phase. Here is the case text: {state.case_text}"
     
     # 1. Retrieve
     query = f"{role} argument for {phase}"
