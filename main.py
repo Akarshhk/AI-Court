@@ -5,14 +5,32 @@ from interfaces import AgentOutput
 
 # Hardcoded sample case
 CASE_SCENARIO = """
-Fictional Corporate Fraud Scenario: ApexTech Holdings
-On March 3rd, 2024, an unauthorized wire transfer of $40,000 was initiated from ApexTech's operating account to an offshore entity, 'Nimbus Consulting'. 
-The prosecution alleges that the CEO, Jane Doe, authorized this transfer to pay off personal gambling debts. 
-Evidence includes a recovered email from Jane's corporate account dated March 2nd stating: 'Initiate the Nimbus payment immediately, bypass standard audit'.
-The defense claims Jane's email was compromised by a phishing attack and that she was on a flight without Wi-Fi during the time of authorization.
-Flight logs confirm Jane was on Flight 882 from NYC to London. 
-IT logs show a login to Jane's email from an IP address in Eastern Europe at the time the 'Nimbus' email was sent.
+ApexTech Holdings is a mid-sized corporate entity.
+
+On March 3rd, 2024, an unauthorized wire transfer of $40,000 was initiated.
+
+The transfer moved funds from ApexTech's operating account to an offshore entity named 'Nimbus Consulting'.
+
+The prosecution alleges that the CEO, Jane Doe, authorized this transfer.
+
+The prosecution claims this was done to pay off personal gambling debts.
+
+Evidence includes a recovered email from Jane's corporate account.
+
+This email is dated March 2nd.
+
+The email states: 'Initiate the Nimbus payment immediately, bypass standard audit'.
+
+The defense claims Jane's email was compromised by a phishing attack.
+
+The defense also claims she was on a flight without Wi-Fi during the time of authorization.
+
+Flight logs confirm Jane was on Flight 882 from NYC to London at the time.
+
+IT logs show a login to Jane's email from an IP address in Eastern Europe at the exact time the 'Nimbus' email was sent.
 """
+
+from rag.ingest import ingest_case
 
 def simple_event_hook(event_name: str, payload: AgentOutput | dict):
     """Callback to print live trial events."""
@@ -24,6 +42,9 @@ def simple_event_hook(event_name: str, payload: AgentOutput | dict):
 
 async def main():
     print("Starting AI Courtroom Trial...")
+    
+    # Ingest the case document into our vector store
+    ingest_case(CASE_SCENARIO)
     
     # Run trial end-to-end with the event hook
     state = await run_trial(CASE_SCENARIO, on_event=simple_event_hook)

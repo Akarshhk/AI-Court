@@ -4,8 +4,8 @@ from interfaces import CaseState, AgentOutput, Chunk
 
 # Import the real agent runtime
 from agent_runtime import run_agent
-from mocks import retrieve, validate_citations
-
+from rag.retrieve import retrieve
+from validation import validate_citations
 NUM_ARGUMENT_ROUNDS = 1
 NUM_JURORS = 5
 MAX_CITATION_RETRIES = 2
