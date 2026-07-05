@@ -52,11 +52,17 @@ async def main():
     print("\n" + "="*40)
     print("FINAL VERDICT DOCUMENT:")
     print("="*40)
-    if state.verdict_document:
-        # Print clearly formatted JSON for the verdict document
-        print(json.dumps(state.verdict_document, indent=2))
-    else:
-        print("Error: No verdict document produced.")
+    try:
+        from verdict import build_verdict_document
+        polished_verdict = build_verdict_document(state)
+        print(json.dumps(polished_verdict, indent=2))
+    except Exception as e:
+        print(f"Error building polished verdict document: {e}")
+        if state.verdict_document:
+            print("\nFallback to simple verdict document:")
+            print(json.dumps(state.verdict_document, indent=2))
+        else:
+            print("Error: No verdict document produced.")
 
 if __name__ == "__main__":
     asyncio.run(main())
