@@ -19,7 +19,7 @@ class AgentOutput(BaseModel):
     statement: str
     evidence_citations: List[Citation]
     confidence: float          # 0.0-1.0
-    verdict: Optional[str] = None     # jurors only: "guilty" | "not_guilty" | "undecided"
+    verdict: Optional[str] = None     # jurors only: "guilty" | "not_guilty"
     reasoning: Optional[str] = None   # jurors only
 
 class ValidationResult(BaseModel):

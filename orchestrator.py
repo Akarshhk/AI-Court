@@ -10,6 +10,7 @@ NUM_ARGUMENT_ROUNDS = 1
 NUM_JURORS = 5
 MAX_CITATION_RETRIES = 2
 AGENT_TIMEOUT_SECONDS = 10.0
+JUROR_VALID_VOTES = {"guilty", "not_guilty"}
 
 async def safe_run_agent(
     role: str,
@@ -37,7 +38,7 @@ async def safe_run_agent(
                 )
                 fallback.is_failed = True # type: ignore (using pydantic extra='allow')
                 if role.startswith("juror"):
-                    fallback.verdict = "undecided"
+                    fallback.verdict = None
                     fallback.reasoning = "Failed to deliberate."
                 return fallback
     
@@ -109,7 +110,48 @@ async def execute_agent_turn(
     
     if on_event:
         on_event("agent_turn", output)
+
+    if role.startswith("juror_") and not role.endswith("_alternate"):
+        is_hard_failure = getattr(output, "is_failed", False)
+        needs_alternate = False
+        reason = ""
         
+        if is_hard_failure:
+            needs_alternate = True
+            reason = "failed"
+        elif output.verdict not in JUROR_VALID_VOTES:
+            correction_feedback = "Your response did not include a valid verdict. You must set verdict to exactly 'guilty' or 'not_guilty' — no other value, capitalization, or punctuation is accepted."
+            corrected_output = await safe_run_agent(
+                role=role,
+                system_prompt=system_prompt,
+                transcript=state.transcript,
+                retrieved_chunks=chunks,
+                retry_feedback=correction_feedback
+            )
+            
+            if not getattr(corrected_output, "is_failed", False):
+                corrected_validation = validate_citations(corrected_output, chunks)
+                if not corrected_validation.is_valid:
+                    corrected_output.statement = f"[UNVERIFIED] {corrected_output.statement}"
+                    corrected_output.is_unverified = True # type: ignore
+                    
+            state.transcript.append(corrected_output)
+            state.turn_counter += 1
+            if on_event:
+                on_event("agent_turn", corrected_output)
+                
+            if not getattr(corrected_output, "is_failed", False) and corrected_output.verdict in JUROR_VALID_VOTES:
+                output = corrected_output
+            else:
+                needs_alternate = True
+                reason = "malformed_vote"
+                
+        if needs_alternate:
+            if on_event:
+                on_event("juror_alternate_invoked", {"original_role": role, "reason": reason})
+            alt_role = f"{role}_alternate"
+            output = await execute_agent_turn(alt_role, phase, state, on_event)
+
     return output
 
 def transition_phase(state: CaseState, new_phase: str, on_event: Optional[Callable[[str, Union[AgentOutput, dict]], None]] = None):
