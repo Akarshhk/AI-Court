@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from orchestrator import run_trial
 from interfaces import AgentOutput
+from rag.ingest import ingest_case
 
 app = FastAPI()
 
@@ -27,6 +28,7 @@ trial_queues = {}
 
 @app.post("/trial/start")
 async def start_trial(req: TrialRequest):
+    ingest_case(req.case_text)
     trial_id = str(uuid.uuid4())
     queue = asyncio.Queue()
     trial_queues[trial_id] = queue
