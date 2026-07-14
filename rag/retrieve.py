@@ -38,18 +38,9 @@ async def retrieve(query: str, k: int = 3) -> List[Chunk]:
     # Sort by score descending, then by index to maintain stability
     scores.sort(key=lambda x: (-x[0], x[1]))
     
-    # If top scores are 0, we fall back to a deterministic rotation based on the query string
+    # If top scores are 0, we fall back to returning an empty list to trigger the orchestrator's RAG fallback
     if scores[0][0] == 0.0:
-        # Generate a deterministic offset using the query (e.g. role+phase)
-        hash_val = int(hashlib.md5(query.encode('utf-8')).hexdigest(), 16)
-        offset = hash_val % len(STORE)
-        
-        # Select k chunks wrapping around the store length
-        results = []
-        for j in range(k):
-            idx = (offset + j) % len(STORE)
-            results.append(STORE[idx])
-        return results
+        return []
         
     top_k_indices = [idx for score, idx in scores[:k]]
     return [STORE[idx] for idx in top_k_indices]

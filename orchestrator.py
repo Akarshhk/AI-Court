@@ -59,15 +59,23 @@ async def execute_agent_turn(
     on_event: Optional[Callable[[str, Union[AgentOutput, dict]], None]] = None
 ) -> AgentOutput:
     """Executes a single agent's turn with retrieval, validation, and retry logic."""
-    from prompts_trial import get_system_prompt
-    if role in ["judge", "prosecution", "defense"]:
-        system_prompt = get_system_prompt(role, phase, state.case_text)
-    else:
-        system_prompt = f"You are acting as {role} during the {phase} phase. Here is the case text: {state.case_text}"
+    def get_prompt(r: str, p: str, c: str) -> str:
+        if r.startswith("juror_"):
+            from prompts_jury import get_system_prompt
+        else:
+            from prompts_trial import get_system_prompt
+        return get_system_prompt(r, p, c)
+        
+    system_prompt = get_prompt(role, phase, state.case_text)
     
     # 1. Retrieve
     query = f"{role} argument for {phase}"
     chunks = await retrieve(query)
+    
+    if not chunks:
+        if on_event:
+            on_event("rag_fallback", {"role": role, "phase": phase, "message": "Using full case text due to retrieval failure."})
+        system_prompt += f"\n\n[SYSTEM NOTE: Retrieval failed. Full case text provided instead:]\n{state.case_text}"
     
     # 2. Agent Call with Validation Retry Loop
     feedback = None
@@ -192,10 +200,13 @@ async def run_trial(case_text: str, on_event: Optional[Callable[[str, Union[Agen
     transition_phase(state, "jury_deliberation", on_event)
     
     juror_tasks = []
+    
+    async def staggered_juror(juror_idx: int) -> AgentOutput:
+        await asyncio.sleep(juror_idx * 0.3)
+        return await execute_agent_turn(f"juror_{juror_idx}", state.phase, state, on_event)
+
     for i in range(1, NUM_JURORS + 1):
-        juror_tasks.append(
-            execute_agent_turn(f"juror_{i}", state.phase, state, on_event)
-        )
+        juror_tasks.append(staggered_juror(i))
     
     # Run jurors concurrently
     await asyncio.gather(*juror_tasks)
