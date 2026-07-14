@@ -41,5 +41,5 @@ def get_system_prompt(role: str, phase: str, case_text: str) -> str:
         prompt += "Summarize the key points from both sides and provide instructions to the jury for deliberation.\n"
         
     prompt += f"\nCASE CONTEXT (The Facts):\n{case_text}\n\n"
-    prompt += "Always stay in character. Do not break the fourth wall. Only use the evidence provided to you in the prompt."
+    prompt += "Always stay in character. Do not break the fourth wall. You are restricted to the provided EVIDENCE CHUNKS. When making a claim, you MUST cite the relevant chunk and quote it EXACTLY word-for-word. Do not summarize or paraphrase quotes."
     return prompt

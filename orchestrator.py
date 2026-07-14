@@ -101,6 +101,8 @@ async def execute_agent_turn(
             is_unverified = False
             break
         else:
+            print(f"\n--- [CITATION VALIDATION FAILURE] {role.upper()} (Attempt {attempt + 1}/{MAX_CITATION_RETRIES + 1}) ---")
+            print(f"Feedback sent to agent: {validation.feedback}\n")
             feedback = validation.feedback
             is_unverified = True
     
@@ -202,7 +204,8 @@ async def run_trial(case_text: str, on_event: Optional[Callable[[str, Union[Agen
     juror_tasks = []
     
     async def staggered_juror(juror_idx: int) -> AgentOutput:
-        await asyncio.sleep(juror_idx * 0.3)
+        # Increased stagger to 5.0s to avoid 429 RESOURCE_EXHAUSTED errors on standard API keys
+        await asyncio.sleep(juror_idx * 5.0)
         return await execute_agent_turn(f"juror_{juror_idx}", state.phase, state, on_event)
 
     for i in range(1, NUM_JURORS + 1):

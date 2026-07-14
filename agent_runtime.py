@@ -66,7 +66,7 @@ async def run_agent(
     
     # 5. Call API
     response = await client.aio.models.generate_content(
-        model='gemini-2.5-pro',
+        model='gemini-3.1-flash-lite',
         contents=user_content,
         config=config
     )
@@ -81,6 +81,11 @@ async def run_agent(
             relevance=c.get("relevance", "")
         ) for c in data.get("evidence_citations", [])
     ]
+    
+    # DEMO TRIGGER: Fabricated citation
+    if os.environ.get("FORCE_BAD_CITATION") == role and citations:
+        citations[0].quote = "FABRICATED DEMO QUOTE"
+        del os.environ["FORCE_BAD_CITATION"]
     
     output = AgentOutput(
         agent_role=role,

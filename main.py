@@ -1,35 +1,10 @@
+import argparse
 import asyncio
 import json
+import os
 from orchestrator import run_trial
 from interfaces import AgentOutput
-
-# Hardcoded sample case
-CASE_SCENARIO = """
-ApexTech Holdings is a mid-sized corporate entity.
-
-On March 3rd, 2024, an unauthorized wire transfer of $40,000 was initiated.
-
-The transfer moved funds from ApexTech's operating account to an offshore entity named 'Nimbus Consulting'.
-
-The prosecution alleges that the CEO, Jane Doe, authorized this transfer.
-
-The prosecution claims this was done to pay off personal gambling debts.
-
-Evidence includes a recovered email from Jane's corporate account.
-
-This email is dated March 2nd.
-
-The email states: 'Initiate the Nimbus payment immediately, bypass standard audit'.
-
-The defense claims Jane's email was compromised by a phishing attack.
-
-The defense also claims she was on a flight without Wi-Fi during the time of authorization.
-
-Flight logs confirm Jane was on Flight 882 from NYC to London at the time.
-
-IT logs show a login to Jane's email from an IP address in Eastern Europe at the exact time the 'Nimbus' email was sent.
-"""
-
+from case import get_case_text
 from rag.ingest import ingest_case
 
 def simple_event_hook(event_name: str, payload: AgentOutput | dict):
@@ -40,14 +15,15 @@ def simple_event_hook(event_name: str, payload: AgentOutput | dict):
         if isinstance(payload, AgentOutput):
             print(f"[{payload.agent_role.upper()}] (Turn {payload.turn}): {payload.statement}")
 
-async def main():
+async def main(omit_fact_idx: int = None):
     print("Starting AI Courtroom Trial...")
     
+    case_text = get_case_text(omit_fact_idx)
     # Ingest the case document into our vector store
-    ingest_case(CASE_SCENARIO)
+    ingest_case(case_text)
     
     # Run trial end-to-end with the event hook
-    state = await run_trial(CASE_SCENARIO, on_event=simple_event_hook)
+    state = await run_trial(case_text, on_event=simple_event_hook)
     
     print("\n\n" + "="*40)
     print("TRIAL COMPLETE - FULL TRANSCRIPT:")
@@ -86,4 +62,12 @@ async def main():
             print("Error: No verdict document produced.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(description="AI Courtroom Demo")
+    parser.add_argument("--force-bad-citation", type=str, help="Force a bad citation for a specific role (e.g. prosecution)")
+    parser.add_argument("--omit-fact", type=int, help="Index of the fact to omit (e.g. 10)")
+    args = parser.parse_args()
+
+    if args.force_bad_citation:
+        os.environ["FORCE_BAD_CITATION"] = args.force_bad_citation
+
+    asyncio.run(main(args.omit_fact))
