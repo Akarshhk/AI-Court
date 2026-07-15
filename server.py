@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from orchestrator import run_trial
 from interfaces import AgentOutput
-from rag.ingest import ingest_case
+from rag.ingest import ingest_case, STORE
 
 app = FastAPI()
 
@@ -40,6 +40,10 @@ async def start_trial(req: TrialRequest):
     asyncio.create_task(run_trial(req.case_text, on_event=on_event))
 
     return {"trial_id": trial_id}
+
+@app.get("/case/chunks")
+async def get_case_chunks():
+    return {"chunks": [c.model_dump() for c in STORE]}
 
 @app.get("/trial/stream/{trial_id}")
 async def stream_trial(trial_id: str):

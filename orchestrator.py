@@ -52,6 +52,53 @@ async def safe_run_agent(
     )
 
 
+def build_retrieval_query(role: str, phase: str, state: CaseState) -> str:
+    from case import CASE_CHARGE_SUMMARY
+    
+    if phase == "opening":
+        return CASE_CHARGE_SUMMARY
+        
+    if role in {"prosecution", "defense"}:
+        opposing_role = "defense" if role == "prosecution" else "prosecution"
+        
+        opposing_statement = None
+        for turn in reversed(state.transcript):
+            if turn.agent_role == opposing_role:
+                stmt = turn.statement
+                if stmt.startswith("[UNVERIFIED] "):
+                    stmt = stmt[len("[UNVERIFIED] "):]
+                opposing_statement = stmt
+                break
+                
+        if opposing_statement:
+            return opposing_statement
+        else:
+            return CASE_CHARGE_SUMMARY
+            
+    if role == "judge" and phase == "judge_ruling":
+        statements = []
+        for turn in state.transcript:
+            if turn.agent_role in {"prosecution", "defense"}:
+                stmt = turn.statement
+                if stmt.startswith("[UNVERIFIED] "):
+                    stmt = stmt[len("[UNVERIFIED] "):]
+                statements.append(stmt)
+        if statements:
+            return " ".join(statements)
+            
+    if role.startswith("juror_"):
+        statements = []
+        for turn in state.transcript:
+            if turn.agent_role in {"prosecution", "defense", "judge"}:
+                stmt = turn.statement
+                if stmt.startswith("[UNVERIFIED] "):
+                    stmt = stmt[len("[UNVERIFIED] "):]
+                statements.append(stmt)
+        if statements:
+            return " ".join(statements)
+            
+    return f"{role} argument for {phase}"
+
 async def execute_agent_turn(
     role: str,
     phase: str,
@@ -69,7 +116,7 @@ async def execute_agent_turn(
     system_prompt = get_prompt(role, phase, state.case_text)
     
     # 1. Retrieve
-    query = f"{role} argument for {phase}"
+    query = build_retrieval_query(role, phase, state)
     chunks = await retrieve(query)
     
     if not chunks:

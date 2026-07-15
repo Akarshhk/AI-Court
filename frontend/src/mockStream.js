@@ -4,10 +4,10 @@ const mockEvents = [
   { type: 'phase_change', payload: { phase: 'opening' }, delay: 1000 },
   { type: 'agent_turn', payload: { agent_role: 'judge', turn: 1, statement: 'Order in the court. The trial will now commence. Prosecution, you may present your opening statement.', confidence: 0.99 }, delay: 2000 },
   { type: 'phase_change', payload: { phase: 'prosecution_argument' }, delay: 3000 },
-  { type: 'agent_turn', payload: { agent_role: 'prosecution', turn: 2, statement: 'The evidence clearly shows the defendant\'s involvement. According to the log files...', evidence_citations: [{ chunk_id: 'doc-123', quote: 'User accessed server at 02:00', relevance: 'Proves presence' }], confidence: 0.95 }, delay: 3000 },
-  { type: 'agent_turn', payload: { agent_role: 'prosecution', turn: 3, statement: '[UNVERIFIED] The defendant also confessed to the crime in a deleted email.', evidence_citations: [], confidence: 0.5, is_unverified: true }, delay: 3000 },
+  { type: 'agent_turn', payload: { agent_role: 'prosecution', turn: 2, statement: 'The evidence clearly shows the defendant\'s involvement. According to the log files...', evidence_citations: [{ chunk_id: 'case_chunk_004', quote: 'User accessed server at 02:00', relevance: 'Proves presence' }], confidence: 0.95 }, delay: 3000 },
+  { type: 'agent_turn', payload: { agent_role: 'prosecution', turn: 3, statement: '[UNVERIFIED] The defendant also confessed to the crime in a deleted email.', evidence_citations: [{ chunk_id: 'case_chunk_007', quote: 'The defendant confessed', relevance: 'Confession email' }], confidence: 0.5, is_unverified: true }, delay: 3000 },
   { type: 'phase_change', payload: { phase: 'defense_rebuttal' }, delay: 2000 },
-  { type: 'agent_turn', payload: { agent_role: 'defense', turn: 4, statement: 'Objection! The prosecution is relying on unverified claims. The log files were modified.', evidence_citations: [{ chunk_id: 'doc-124', quote: 'Admin access granted to 3rd party', relevance: 'Alternative suspect' }], confidence: 0.9 }, delay: 3000 },
+  { type: 'agent_turn', payload: { agent_role: 'defense', turn: 4, statement: 'Objection! The prosecution is relying on unverified claims. The log files were modified.', evidence_citations: [{ chunk_id: 'case_chunk_009', quote: 'Admin access granted to 3rd party', relevance: 'Alternative suspect' }], confidence: 0.9 }, delay: 3000 },
   { type: 'phase_change', payload: { phase: 'judge_ruling' }, delay: 2000 },
   { type: 'agent_turn', payload: { agent_role: 'judge', turn: 5, statement: 'The unverified statement will be stricken from the record. The jury will disregard it.', confidence: 0.99 }, delay: 3000 },
   { type: 'phase_change', payload: { phase: 'jury_deliberation' }, delay: 2000 },
@@ -24,8 +24,8 @@ const mockEvents = [
       vote_breakdown: { guilty: 4, not_guilty: 1 },
       dissenting_opinions: [{ juror: 'juror_2_alternate', verdict: 'not_guilty', reasoning: 'Third party access introduces doubt.' }],
       all_citations_used: [
-        { chunk_id: 'doc-123', quote: 'User accessed server at 02:00', relevance: 'Proves presence' },
-        { chunk_id: 'doc-124', quote: 'Admin access granted to 3rd party', relevance: 'Alternative suspect' }
+        { chunk_id: 'case_chunk_004', quote: 'User accessed server at 02:00', relevance: 'Proves presence' },
+        { chunk_id: 'case_chunk_009', quote: 'Admin access granted to 3rd party', relevance: 'Alternative suspect' }
       ]
   }, delay: 1000 }
 ];

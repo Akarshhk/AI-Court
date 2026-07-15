@@ -3,6 +3,7 @@ import { PhaseIndicator } from './components/PhaseIndicator';
 import { TranscriptPanel } from './components/TranscriptPanel';
 import { JuryPanel } from './components/JuryPanel';
 import { VerdictView } from './components/VerdictView';
+import { EvidencePanel } from './components/EvidencePanel';
 import { AlertCircle, Play } from 'lucide-react';
 
 const DEFAULT_CASE = `OmniCorp Industries is a publicly traded logistics software company.
@@ -31,6 +32,11 @@ function App() {
   const [verdictDoc, setVerdictDoc] = useState(null);
   const [alternateToast, setAlternateToast] = useState(null);
 
+  // Evidence Panel State
+  const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
+  const [activeChunkIds, setActiveChunkIds] = useState([]);
+  const [rejectedChunkIds, setRejectedChunkIds] = useState([]);
+
   const handleEvent = useCallback((event) => {
     switch (event.type) {
       case 'phase_change':
@@ -39,6 +45,27 @@ function App() {
       
       case 'agent_turn':
         setTurns(prev => [...prev, event.payload]);
+        
+        // Handle Citations for Evidence Panel
+        const { evidence_citations, is_unverified, statement } = event.payload;
+        const hasUnverifiedPrefix = statement && statement.startsWith('[UNVERIFIED]');
+        const isUnverified = is_unverified || hasUnverifiedPrefix;
+        
+        if (evidence_citations && evidence_citations.length > 0) {
+          const chunkIds = evidence_citations.map(c => c.chunk_id);
+          if (isUnverified) {
+            setRejectedChunkIds(chunkIds);
+            setActiveChunkIds([]);
+          } else {
+            setActiveChunkIds(chunkIds);
+            setRejectedChunkIds([]);
+          }
+          setIsEvidenceOpen(true);
+        } else {
+          // Clear highlights if no citations
+          setActiveChunkIds([]);
+          setRejectedChunkIds([]);
+        }
         
         // Update juror state if it's a juror turn
         if (event.payload.agent_role.startsWith('juror')) {
@@ -81,6 +108,12 @@ function App() {
       case 'verdict_document_ready':
         setVerdictDoc(event.payload);
         setIsStreaming(false);
+        // Show all citations used at the end
+        if (event.payload.all_citations_used && event.payload.all_citations_used.length > 0) {
+          setActiveChunkIds(event.payload.all_citations_used.map(c => c.chunk_id));
+          setRejectedChunkIds([]);
+          setIsEvidenceOpen(true);
+        }
         break;
 
       default:
@@ -184,7 +217,13 @@ function App() {
 
       <PhaseIndicator currentPhase={currentPhase} />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        <EvidencePanel 
+          isOpen={isEvidenceOpen} 
+          onClose={() => setIsEvidenceOpen(false)} 
+          activeChunkIds={activeChunkIds} 
+          rejectedChunkIds={rejectedChunkIds} 
+        />
         {/* Transcript Left */}
         <TranscriptPanel turns={turns} />
         

@@ -14,6 +14,8 @@ CASE_FACTS = [
     "Accounting logs show the Q3 report was finalized on October 8 but not published until October 12."
 ]
 
+CASE_CHARGE_SUMMARY = "OmniCorp CEO Marcus Thorne is accused of insider trading for allegedly selling $15 million in stock while possessing non-public information about a disastrous Q3 loss, and instructing accounting to delay the public announcement."
+
 def get_case_text(omit_fact_idx: int = None) -> str:
     facts = CASE_FACTS.copy()
     if omit_fact_idx is not None and 0 <= omit_fact_idx < len(facts):

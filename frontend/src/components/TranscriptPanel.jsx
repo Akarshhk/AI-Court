@@ -91,16 +91,33 @@ export function TranscriptPanel({ turns }) {
                       <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Citations</span>
                       <div className="grid gap-2">
                         {evidence_citations.map((cite, i) => (
-                          <div key={i} className="flex flex-col gap-1 text-sm bg-zinc-900/50 p-2.5 rounded border border-zinc-800">
+                          <div key={i} className={`flex flex-col gap-1 text-sm p-2.5 rounded border transition-colors ${
+                            isUnverified 
+                              ? 'bg-red-500/10 border-red-500/20' 
+                              : 'bg-zinc-900/50 border-zinc-800'
+                          }`}>
                             <div className="flex items-center gap-2">
-                              <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 text-[10px] font-mono border border-zinc-700">
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono border ${
+                                isUnverified 
+                                  ? 'bg-red-500/20 text-red-300 border-red-500/30 line-through' 
+                                  : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+                              }`}>
                                 {cite.chunk_id}
                               </span>
-                              <span className="text-zinc-500 text-xs italic">
+                              {isUnverified && (
+                                <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">
+                                  Rejected
+                                </span>
+                              )}
+                              <span className={`text-xs italic ${isUnverified ? 'text-red-400/70' : 'text-zinc-500'}`}>
                                 {cite.relevance}
                               </span>
                             </div>
-                            <div className="text-zinc-400 border-l-2 border-zinc-700 pl-2 ml-1 text-[13px]">
+                            <div className={`pl-2 ml-1 text-[13px] border-l-2 ${
+                              isUnverified 
+                                ? 'text-red-300/70 border-red-500/30 line-through decoration-red-500/50' 
+                                : 'text-zinc-400 border-zinc-700'
+                            }`}>
                               "{cite.quote}"
                             </div>
                           </div>
