@@ -30,6 +30,7 @@ function App() {
   const [turns, setTurns] = useState([]);
   const [jurors, setJurors] = useState([]);
   const [verdictDoc, setVerdictDoc] = useState(null);
+  const [isVerdictOpen, setIsVerdictOpen] = useState(false);
   const [alternateToast, setAlternateToast] = useState(null);
 
   // Evidence Panel State
@@ -107,6 +108,7 @@ function App() {
 
       case 'verdict_document_ready':
         setVerdictDoc(event.payload);
+        setIsVerdictOpen(true);
         setIsStreaming(false);
         // Show all citations used at the end
         if (event.payload.all_citations_used && event.payload.all_citations_used.length > 0) {
@@ -169,6 +171,24 @@ function App() {
     };
   }, [eventSource]);
 
+  const handleReset = () => {
+    if (eventSource) {
+      eventSource.close();
+      setEventSource(null);
+    }
+    setHasStarted(false);
+    setIsStreaming(false);
+    setCurrentPhase('opening');
+    setTurns([]);
+    setJurors([]);
+    setVerdictDoc(null);
+    setIsVerdictOpen(false);
+    setAlternateToast(null);
+    setIsEvidenceOpen(false);
+    setActiveChunkIds([]);
+    setRejectedChunkIds([]);
+  };
+
   return (
     <div className="h-screen w-screen bg-zinc-950 flex flex-col font-sans text-zinc-100 overflow-hidden relative">
       
@@ -215,7 +235,7 @@ function App() {
         </div>
       )}
 
-      <PhaseIndicator currentPhase={currentPhase} />
+      <PhaseIndicator currentPhase={currentPhase} onReset={handleReset} />
 
       <div className="flex-1 flex overflow-hidden relative">
         <EvidencePanel 
@@ -231,7 +251,12 @@ function App() {
         <JuryPanel jurors={jurors} />
       </div>
 
-      <VerdictView verdictDoc={verdictDoc} />
+      <VerdictView 
+        verdictDoc={verdictDoc} 
+        isOpen={isVerdictOpen} 
+        onClose={() => setIsVerdictOpen(false)} 
+        onReset={handleReset}
+      />
 
     </div>
   );

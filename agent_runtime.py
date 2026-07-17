@@ -61,7 +61,7 @@ async def run_agent(
         system_instruction=system_prompt,
         response_mime_type="application/json",
         response_schema=schema,
-        temperature=0.2,
+        temperature=0.1,
     )
     
     # 5. Call API

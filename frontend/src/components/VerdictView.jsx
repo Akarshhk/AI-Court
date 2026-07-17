@@ -1,8 +1,8 @@
 import React from 'react';
 import { FileSignature, AlertCircle, CheckCircle2, XCircle, Scale } from 'lucide-react';
 
-export function VerdictView({ verdictDoc }) {
-  if (!verdictDoc) return null;
+export function VerdictView({ verdictDoc, isOpen, onClose, onReset }) {
+  if (!verdictDoc || !isOpen) return null;
 
   const { final_verdict, vote_breakdown, dissenting_opinions, all_citations_used } = verdictDoc;
 
@@ -25,7 +25,7 @@ export function VerdictView({ verdictDoc }) {
   const Icon = style.icon;
 
   return (
-    <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-6 overflow-y-auto">
+    <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm z-50 flex items-start justify-center p-6 overflow-y-auto">
       <div className="bg-zinc-900 border border-zinc-700 rounded-xl max-w-2xl w-full shadow-2xl overflow-hidden mt-10 mb-10">
         
         {/* Header */}
@@ -96,8 +96,22 @@ export function VerdictView({ verdictDoc }) {
         </div>
         
         {/* Footer */}
-        <div className="bg-zinc-950 p-4 text-center border-t border-zinc-800">
+        <div className="bg-zinc-950 p-4 border-t border-zinc-800 flex justify-between items-center">
           <p className="text-zinc-600 text-xs uppercase tracking-widest font-semibold">Proceeding Concluded</p>
+          <div className="flex gap-3">
+            <button 
+              onClick={onReset}
+              className="text-zinc-300 hover:text-white bg-zinc-900 hover:bg-zinc-800 px-4 py-2 rounded text-sm font-bold transition-all border border-zinc-700 hover:border-zinc-500"
+            >
+              New Case
+            </button>
+            <button 
+              onClick={onClose}
+              className="text-zinc-400 hover:text-white bg-zinc-900 hover:bg-zinc-800 px-4 py-2 rounded text-sm font-bold transition-colors border border-zinc-800 hover:border-zinc-700"
+            >
+              Review Dashboard
+            </button>
+          </div>
         </div>
       </div>
     </div>
