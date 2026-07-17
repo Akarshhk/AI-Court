@@ -7,7 +7,9 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from interfaces import AgentOutput, Chunk, ValidationResult
 
 def normalize_text(text: str) -> str:
-    """Normalizes whitespace by collapsing internal whitespace runs to a single space."""
+    """Normalizes whitespace by collapsing internal whitespace runs to a single space, and removes quotes and inline citations."""
+    text = re.sub(r'[\'\"\u2018\u2019\u201c\u201d]', '', text)
+    text = re.sub(r'\[cite:\d+\]', '', text)
     return re.sub(r'\s+', ' ', text).strip().lower()
 
 def validate_citations(output: AgentOutput, available_chunks: List[Chunk]) -> ValidationResult:

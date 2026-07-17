@@ -8,7 +8,10 @@ from fastapi.responses import StreamingResponse
 
 from orchestrator import run_trial
 from interfaces import AgentOutput
-from rag.ingest import ingest_case, STORE
+from rag.ingest import ingest_case, ingest_custom_document, STORE
+from rag.document_parser import extract_text
+from rag.generic_chunker import chunk_generic
+from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 
 app = FastAPI()
 
@@ -25,10 +28,52 @@ class TrialRequest(BaseModel):
 
 # In-memory store: trial_id -> asyncio.Queue
 trial_queues = {}
+UPLOADED_CASE_TEXT = ""
+
+@app.post("/case/upload")
+async def upload_case(file: UploadFile = File(...)):
+    global UPLOADED_CASE_TEXT
+    
+    # Check for running trials
+    if trial_queues:
+        raise HTTPException(status_code=409, detail="A trial is already in progress")
+        
+    ext = file.filename.split('.')[-1].lower() if file.filename else ""
+    if f".{ext}" not in [".txt", ".pdf", ".docx"]:
+        raise HTTPException(status_code=400, detail="Could not read this file — please upload a .txt, .pdf, or .docx file under 5MB.")
+        
+    file_bytes = await file.read()
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File is too large. Please upload a file under 5MB.")
+        
+    try:
+        extracted_text = extract_text(file_bytes, file.filename)
+        chunks = chunk_generic(extracted_text)
+        ingest_custom_document(chunks)
+        UPLOADED_CASE_TEXT = extracted_text
+        
+        preview = extracted_text[:500] + ("..." if len(extracted_text) > 500 else "")
+        return {
+            "case_text_preview": preview,
+            "chunk_count": len(chunks),
+            "ready": True
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="An error occurred while processing the file.")
 
 @app.post("/trial/start")
 async def start_trial(req: TrialRequest):
-    ingest_case(req.case_text)
+    global UPLOADED_CASE_TEXT
+    
+    # If case_text is empty, we assume it's using the already-ingested UPLOADED_CASE_TEXT
+    if req.case_text:
+        ingest_case(req.case_text)
+        full_text = req.case_text
+    else:
+        full_text = UPLOADED_CASE_TEXT
+        
     trial_id = str(uuid.uuid4())
     queue = asyncio.Queue()
     trial_queues[trial_id] = queue
@@ -37,7 +82,7 @@ async def start_trial(req: TrialRequest):
         queue.put_nowait((event_type, payload))
 
     # Launch trial in background
-    asyncio.create_task(run_trial(req.case_text, on_event=on_event))
+    asyncio.create_task(run_trial(full_text, on_event=on_event))
 
     return {"trial_id": trial_id}
 
@@ -53,18 +98,22 @@ async def stream_trial(trial_id: str):
     queue = trial_queues[trial_id]
 
     async def event_generator():
-        while True:
-            event_type, payload = await queue.get()
-            
-            # Serialize payload
-            if hasattr(payload, "model_dump_json"):
-                data = payload.model_dump_json()
-            else:
-                data = json.dumps(payload)
+        try:
+            while True:
+                event_type, payload = await queue.get()
                 
-            yield f"event: {event_type}\ndata: {data}\n\n"
-            
-            if event_type == "verdict_document_ready":
-                break
+                # Serialize payload
+                if hasattr(payload, "model_dump_json"):
+                    data = payload.model_dump_json()
+                else:
+                    data = json.dumps(payload)
+                    
+                yield f"event: {event_type}\ndata: {data}\n\n"
+                
+                if event_type == "verdict_document_ready":
+                    break
+        finally:
+            if trial_id in trial_queues:
+                del trial_queues[trial_id]
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

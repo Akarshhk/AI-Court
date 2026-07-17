@@ -17,18 +17,14 @@ TFIDF_VECTORS: List[Dict[str, float]] = []
 def tokenize(text: str) -> List[str]:
     return re.findall(r'\w+', text.lower())
 
-def ingest_case(case_text: str) -> None:
+def _build_store_from_chunks(chunks: List[str]) -> None:
     global STORE, IDF, TFIDF_VECTORS
-    
-    # 1. Chunking: Split by single or multiple newlines
-    # Since the user requested 8-15 short paragraphs, we split on newlines
-    raw_chunks = [p.strip() for p in case_text.split('\n') if p.strip()]
     
     STORE.clear()
     doc_freqs = Counter()
     doc_tokens = []
     
-    for i, text in enumerate(raw_chunks):
+    for i, text in enumerate(chunks):
         chunk_id = f"case_chunk_{i:03d}"
         chunk = Chunk(
             chunk_id=chunk_id,
@@ -46,6 +42,8 @@ def ingest_case(case_text: str) -> None:
     # Compute IDF
     N = len(STORE)
     if N == 0:
+        IDF.clear()
+        TFIDF_VECTORS.clear()
         return
         
     IDF.clear()
@@ -62,3 +60,13 @@ def ingest_case(case_text: str) -> None:
             for t, count in tf.items():
                 vec[t] = (count / length) * IDF.get(t, 0.0)
         TFIDF_VECTORS.append(vec)
+
+def ingest_case(case_text: str) -> None:
+    # 1. Chunking: Split by single or multiple newlines
+    # Since the user requested 8-15 short paragraphs, we split on newlines
+    raw_chunks = [p.strip() for p in case_text.split('\n') if p.strip()]
+    _build_store_from_chunks(raw_chunks)
+
+def ingest_custom_document(chunks: List[str]) -> None:
+    # Uses generic chunks passed in directly
+    _build_store_from_chunks(chunks)

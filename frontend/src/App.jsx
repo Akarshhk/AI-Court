@@ -4,7 +4,7 @@ import { TranscriptPanel } from './components/TranscriptPanel';
 import { JuryPanel } from './components/JuryPanel';
 import { VerdictView } from './components/VerdictView';
 import { EvidencePanel } from './components/EvidencePanel';
-import { AlertCircle, Play } from 'lucide-react';
+import { AlertCircle, Play, Upload, FileText } from 'lucide-react';
 
 const DEFAULT_CASE = `OmniCorp Industries is a publicly traded logistics software company.
 On October 12, 2023, OmniCorp announced a $50 million quarterly loss.
@@ -24,6 +24,14 @@ function App() {
   const [hasStarted, setHasStarted] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [caseText, setCaseText] = useState(DEFAULT_CASE);
+  
+  // Upload State
+  const [caseMode, setCaseMode] = useState('demo'); // 'demo' | 'upload'
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState('idle'); // 'idle' | 'uploading' | 'success' | 'error'
+  const [uploadPreview, setUploadPreview] = useState('');
+  const [uploadChunkCount, setUploadChunkCount] = useState(0);
+  const [uploadError, setUploadError] = useState('');
   
   // Trial State
   const [currentPhase, setCurrentPhase] = useState('opening');
@@ -130,10 +138,11 @@ function App() {
     setIsStreaming(true);
     
     try {
+      const payload = { case_text: caseMode === 'demo' ? caseText : "" };
       const response = await fetch('http://localhost:8000/trial/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ case_text: caseText })
+        body: JSON.stringify(payload)
       });
       const data = await response.json();
       const trial_id = data.trial_id;
@@ -186,7 +195,43 @@ function App() {
     setAlternateToast(null);
     setIsEvidenceOpen(false);
     setActiveChunkIds([]);
+    setActiveChunkIds([]);
     setRejectedChunkIds([]);
+    setCaseMode('demo');
+    setUploadFile(null);
+    setUploadStatus('idle');
+    setUploadPreview('');
+    setUploadChunkCount(0);
+    setUploadError('');
+  };
+
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+    setUploadFile(file);
+    setUploadStatus('uploading');
+    setUploadError('');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const response = await fetch('http://localhost:8000/case/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || 'Upload failed');
+      }
+      
+      setUploadPreview(data.case_text_preview);
+      setUploadChunkCount(data.chunk_count);
+      setUploadStatus('success');
+    } catch (err) {
+      setUploadError(err.message);
+      setUploadStatus('error');
+    }
   };
 
   return (
@@ -214,19 +259,102 @@ function App() {
               A live multi-agent simulation demonstrating structured reasoning, evidence citation, and resilience.
             </p>
             
+            
+            {/* Mode Toggle */}
+            <div className="flex bg-zinc-950 rounded-lg p-1 mb-6 border border-zinc-800 w-full max-w-sm mx-auto">
+              <button 
+                onClick={() => setCaseMode('demo')}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${caseMode === 'demo' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Use demo case
+              </button>
+              <button 
+                onClick={() => setCaseMode('upload')}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${caseMode === 'upload' ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                Upload your own case
+              </button>
+            </div>
+
             <div className="w-full text-left mb-6">
-              <label className="block text-sm font-bold uppercase tracking-wider text-zinc-500 mb-2">Case Evidence / Facts</label>
-              <textarea 
-                value={caseText}
-                onChange={(e) => setCaseText(e.target.value)}
-                className="w-full h-48 bg-zinc-950 border border-zinc-700 rounded-lg p-4 text-sm text-zinc-300 font-serif leading-relaxed focus:outline-none focus:border-zinc-500 transition-colors"
-                placeholder="Enter the case facts here..."
-              />
+              {caseMode === 'demo' ? (
+                <>
+                  <label className="block text-sm font-bold uppercase tracking-wider text-zinc-500 mb-2">Case Evidence / Facts</label>
+                  <textarea 
+                    value={caseText}
+                    onChange={(e) => setCaseText(e.target.value)}
+                    className="w-full h-48 bg-zinc-950 border border-zinc-700 rounded-lg p-4 text-sm text-zinc-300 font-serif leading-relaxed focus:outline-none focus:border-zinc-500 transition-colors"
+                    placeholder="Enter the case facts here..."
+                  />
+                </>
+              ) : (
+                <div className="bg-zinc-950 border border-zinc-700 rounded-lg p-6 flex flex-col items-center justify-center min-h-[192px] transition-colors relative">
+                  {uploadStatus === 'idle' || uploadStatus === 'error' ? (
+                    <>
+                      <Upload className="w-8 h-8 text-zinc-500 mb-3" />
+                      <p className="text-sm font-medium text-zinc-300 mb-1">Select a document to upload</p>
+                      <p className="text-xs text-zinc-500 mb-4">Accepts .txt, .pdf, or .docx (under 5MB)</p>
+                      <input 
+                        type="file" 
+                        accept=".txt,.pdf,.docx"
+                        onChange={(e) => handleFileUpload(e.target.files[0])}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        title="Upload a document"
+                      />
+                      <button className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded text-sm font-medium pointer-events-none">
+                        Browse Files
+                      </button>
+                      {uploadError && (
+                        <div className="mt-4 p-3 bg-red-900/30 border border-red-500/50 rounded text-red-400 text-sm w-full text-center">
+                          {uploadError}
+                        </div>
+                      )}
+                    </>
+                  ) : uploadStatus === 'uploading' ? (
+                    <div className="flex flex-col items-center">
+                      <div className="w-8 h-8 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin mb-3"></div>
+                      <p className="text-sm text-zinc-400">Processing document...</p>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex flex-col">
+                      <div className="flex items-center justify-between mb-3 border-b border-zinc-800 pb-3">
+                        <div className="flex items-center gap-2 text-zinc-300 font-medium">
+                          <FileText className="w-5 h-5 text-emerald-400" />
+                          <span className="truncate max-w-[200px]">{uploadFile?.name}</span>
+                        </div>
+                        <div className="text-xs bg-emerald-950 text-emerald-400 px-2 py-1 rounded border border-emerald-900">
+                          {uploadChunkCount} chunks loaded
+                        </div>
+                      </div>
+                      <div className="flex-1 overflow-hidden relative group">
+                        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-zinc-950 to-transparent z-10 pointer-events-none"></div>
+                        <p className="text-xs text-zinc-500 font-serif whitespace-pre-wrap opacity-70 break-words">
+                          {uploadPreview}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setUploadStatus('idle');
+                          setUploadFile(null);
+                        }}
+                        className="mt-3 text-xs text-zinc-500 hover:text-zinc-300 self-center"
+                      >
+                        Upload a different file
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <button 
               onClick={handleStart}
-              className="bg-zinc-100 text-zinc-950 hover:bg-white px-8 py-4 rounded-full font-bold flex items-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-white/10"
+              disabled={caseMode === 'upload' && uploadStatus !== 'success'}
+              className={`px-8 py-4 rounded-full font-bold flex items-center gap-2 transition-all shadow-lg shadow-white/10 ${
+                caseMode === 'upload' && uploadStatus !== 'success'
+                  ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed opacity-50 shadow-none'
+                  : 'bg-zinc-100 text-zinc-950 hover:bg-white hover:scale-105 active:scale-95'
+              }`}
             >
               <Play className="w-5 h-5 fill-current" />
               Begin Trial Simulation
