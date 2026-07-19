@@ -8,7 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from orchestrator import run_trial
 from interfaces import AgentOutput
-from rag.ingest import ingest_case, ingest_custom_document, STORE
+from rag.ingest import ingest_case, ingest_custom_document
 from rag.document_parser import extract_text
 from rag.generic_chunker import chunk_generic
 from fastapi import FastAPI, Request, UploadFile, File, HTTPException
@@ -29,10 +29,12 @@ class TrialRequest(BaseModel):
 # In-memory store: trial_id -> asyncio.Queue
 trial_queues = {}
 UPLOADED_CASE_TEXT = ""
+UPLOADED_RAG_STATE = ([], {}, [])
+LAST_RAG_STATE = ([], {}, [])
 
 @app.post("/case/upload")
 async def upload_case(file: UploadFile = File(...)):
-    global UPLOADED_CASE_TEXT
+    global UPLOADED_CASE_TEXT, UPLOADED_RAG_STATE
     
     # Check for running trials
     if trial_queues:
@@ -49,7 +51,7 @@ async def upload_case(file: UploadFile = File(...)):
     try:
         extracted_text = extract_text(file_bytes, file.filename)
         chunks = chunk_generic(extracted_text)
-        ingest_custom_document(chunks)
+        UPLOADED_RAG_STATE = ingest_custom_document(chunks)
         UPLOADED_CASE_TEXT = extracted_text
         
         preview = extracted_text[:500] + ("..." if len(extracted_text) > 500 else "")
@@ -65,14 +67,17 @@ async def upload_case(file: UploadFile = File(...)):
 
 @app.post("/trial/start")
 async def start_trial(req: TrialRequest):
-    global UPLOADED_CASE_TEXT
+    global UPLOADED_CASE_TEXT, UPLOADED_RAG_STATE, LAST_RAG_STATE
     
     # If case_text is empty, we assume it's using the already-ingested UPLOADED_CASE_TEXT
     if req.case_text:
-        ingest_case(req.case_text)
+        rag_state = ingest_case(req.case_text)
         full_text = req.case_text
     else:
+        rag_state = UPLOADED_RAG_STATE
         full_text = UPLOADED_CASE_TEXT
+        
+    LAST_RAG_STATE = rag_state
         
     trial_id = str(uuid.uuid4())
     queue = asyncio.Queue()
@@ -82,13 +87,14 @@ async def start_trial(req: TrialRequest):
         queue.put_nowait((event_type, payload))
 
     # Launch trial in background
-    asyncio.create_task(run_trial(full_text, on_event=on_event))
+    asyncio.create_task(run_trial(full_text, rag_state, on_event=on_event))
 
     return {"trial_id": trial_id}
 
 @app.get("/case/chunks")
 async def get_case_chunks():
-    return {"chunks": [c.model_dump() for c in STORE]}
+    store, _, _ = LAST_RAG_STATE
+    return {"chunks": [c.model_dump() for c in store]}
 
 @app.get("/trial/stream/{trial_id}")
 async def stream_trial(trial_id: str):

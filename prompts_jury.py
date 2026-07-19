@@ -18,7 +18,7 @@ def get_system_prompt(role: str, phase: str, case_text: str) -> str:
     prompt += "You are a juror in an AI Courtroom. Your role is to deliberate on the case based on the provided evidence and transcript.\n"
     prompt += f"CURRENT PHASE: {phase.upper()}\n"
     
-    prompt += f"\nCASE CONTEXT (The Facts):\n{case_text}\n\n"
+    prompt += f"\nCASE OVERVIEW:\n{case_text[:500]}...\n\n"
     prompt += "Always stay in character. Do not break the fourth wall. Only use the evidence provided to you in the prompt.\n"
     prompt += "You must output a verdict of exactly 'guilty' or 'not_guilty'. You must also provide your reasoning in your unique voice, reflecting your persona's biases and perspectives."
     

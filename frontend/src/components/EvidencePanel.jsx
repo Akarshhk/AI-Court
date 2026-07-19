@@ -57,11 +57,11 @@ Accounting logs show the Q3 report was finalized on October 8 but not published 
 
   return (
     <div 
-      className={`z-40 bg-zinc-950 border-zinc-800 transition-all duration-500 ease-in-out flex flex-col overflow-hidden ${
+      className={`h-full z-40 bg-zinc-950 border-zinc-800 transition-all duration-500 ease-in-out flex flex-col overflow-hidden ${
         isOpen ? 'w-96 border-r shadow-[20px_0_40px_rgba(0,0,0,0.5)]' : 'w-0 border-r-0 shadow-none'
       }`}
     >
-      <div className="w-96 flex-1 flex flex-col">
+      <div className="w-96 flex-1 flex flex-col h-full overflow-hidden">
         <div className="p-4 border-b border-zinc-900 flex items-center justify-between bg-zinc-900/50">
         <div className="flex items-center gap-2">
           <Database className="w-5 h-5 text-blue-400" />
@@ -72,7 +72,7 @@ Accounting logs show the Q3 report was finalized on October 8 but not published 
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-scroll p-4 space-y-4">
         {loading ? (
           <div className="text-zinc-500 text-sm italic text-center mt-10">Loading evidence...</div>
         ) : (

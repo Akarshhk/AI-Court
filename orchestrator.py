@@ -53,10 +53,10 @@ async def safe_run_agent(
 
 
 def build_retrieval_query(role: str, phase: str, state: CaseState) -> str:
-    from case import CASE_CHARGE_SUMMARY
+    fallback_query = state.case_text[:500]
     
     if phase == "opening":
-        return CASE_CHARGE_SUMMARY
+        return fallback_query
         
     if role in {"prosecution", "defense"}:
         opposing_role = "defense" if role == "prosecution" else "prosecution"
@@ -73,7 +73,7 @@ def build_retrieval_query(role: str, phase: str, state: CaseState) -> str:
         if opposing_statement:
             return opposing_statement
         else:
-            return CASE_CHARGE_SUMMARY
+            return fallback_query
             
     if role == "judge" and phase == "judge_ruling":
         statements = []
@@ -117,7 +117,7 @@ async def execute_agent_turn(
     
     # 1. Retrieve
     query = build_retrieval_query(role, phase, state)
-    chunks = await retrieve(query)
+    chunks = await retrieve(query, state.evidence_store, state.idf, state.tfidf_vectors, k=5)
     
     if not chunks:
         if on_event:
@@ -217,8 +217,11 @@ def transition_phase(state: CaseState, new_phase: str, on_event: Optional[Callab
     if on_event:
         on_event("phase_change", {"phase": new_phase})
 
-async def run_trial(case_text: str, on_event: Optional[Callable[[str, Union[AgentOutput, dict]], None]] = None) -> CaseState:
+async def run_trial(case_text: str, rag_state: tuple, on_event: Optional[Callable[[str, Union[AgentOutput, dict]], None]] = None) -> CaseState:
     """Runs the full multi-agent trial sequence."""
+    
+    # Unpack RAG state
+    store, idf, tfidf_vectors = rag_state
     
     # Initialize state
     state = CaseState(
@@ -226,7 +229,10 @@ async def run_trial(case_text: str, on_event: Optional[Callable[[str, Union[Agen
         case_text=case_text,
         transcript=[],
         turn_counter=0,
-        phase="initialized"
+        phase="initialized",
+        evidence_store=store,
+        idf=idf,
+        tfidf_vectors=tfidf_vectors
     )
     
     # a. Judge opens the case

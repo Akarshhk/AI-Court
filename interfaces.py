@@ -34,3 +34,6 @@ class CaseState(BaseModel):
     turn_counter: int
     phase: str   # "opening" | "prosecution_argument" | "defense_rebuttal" | "judge_ruling" | "jury_deliberation" | "verdict_complete"
     verdict_document: Optional[dict] = None
+    evidence_store: List[Chunk] = []
+    idf: Dict[str, float] = {}
+    tfidf_vectors: List[Dict[str, float]] = []

@@ -45,6 +45,7 @@ function App() {
   const [isEvidenceOpen, setIsEvidenceOpen] = useState(false);
   const [activeChunkIds, setActiveChunkIds] = useState([]);
   const [rejectedChunkIds, setRejectedChunkIds] = useState([]);
+  const [trialCount, setTrialCount] = useState(0);
 
   const handleEvent = useCallback((event) => {
     switch (event.type) {
@@ -136,6 +137,7 @@ function App() {
   const handleStart = async () => {
     setHasStarted(true);
     setIsStreaming(true);
+    setTrialCount(prev => prev + 1);
     
     try {
       const payload = { case_text: caseMode === 'demo' ? caseText : "" };
@@ -367,6 +369,7 @@ function App() {
 
       <div className="flex-1 flex overflow-hidden relative">
         <EvidencePanel 
+          key={trialCount}
           isOpen={isEvidenceOpen} 
           onClose={() => setIsEvidenceOpen(false)} 
           activeChunkIds={activeChunkIds} 
