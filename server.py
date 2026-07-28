@@ -11,6 +11,8 @@ from interfaces import AgentOutput
 from rag.ingest import ingest_case, ingest_custom_document
 from rag.document_parser import extract_text
 from rag.generic_chunker import chunk_generic
+from rag.case_validator import validate_case_document
+from typing import List
 from fastapi import FastAPI, Request, UploadFile, File, HTTPException
 
 app = FastAPI()
@@ -33,32 +35,45 @@ UPLOADED_RAG_STATE = ([], {}, [])
 LAST_RAG_STATE = ([], {}, [])
 
 @app.post("/case/upload")
-async def upload_case(file: UploadFile = File(...)):
+async def upload_case(files: List[UploadFile] = File(...)):
     global UPLOADED_CASE_TEXT, UPLOADED_RAG_STATE
     
     # Check for running trials
     if trial_queues:
         raise HTTPException(status_code=409, detail="A trial is already in progress")
         
-    ext = file.filename.split('.')[-1].lower() if file.filename else ""
-    if f".{ext}" not in [".txt", ".pdf", ".docx"]:
-        raise HTTPException(status_code=400, detail="Could not read this file — please upload a .txt, .pdf, or .docx file under 5MB.")
-        
-    file_bytes = await file.read()
-    if len(file_bytes) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File is too large. Please upload a file under 5MB.")
-        
+    all_extracted_text = ""
+    all_chunks = []
+    
+    for file in files:
+        ext = file.filename.split('.')[-1].lower() if file.filename else ""
+        if f".{ext}" not in [".txt", ".pdf", ".docx"]:
+            raise HTTPException(status_code=400, detail=f"Could not read {file.filename} — please upload .txt, .pdf, or .docx files under 5MB.")
+            
+        file_bytes = await file.read()
+        if len(file_bytes) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail=f"File {file.filename} is too large. Please upload files under 5MB.")
+            
+        try:
+            extracted_text = extract_text(file_bytes, file.filename)
+            chunks = chunk_generic(extracted_text)
+            all_extracted_text += extracted_text + "\n\n"
+            all_chunks.extend(chunks)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error parsing file {file.filename}: {str(e)}")
+            
     try:
-        extracted_text = extract_text(file_bytes, file.filename)
-        chunks = chunk_generic(extracted_text)
-        UPLOADED_RAG_STATE = ingest_custom_document(chunks)
-        UPLOADED_CASE_TEXT = extracted_text
+        validation_result = await validate_case_document(all_extracted_text)
         
-        preview = extracted_text[:500] + ("..." if len(extracted_text) > 500 else "")
+        UPLOADED_RAG_STATE = ingest_custom_document(all_chunks)
+        UPLOADED_CASE_TEXT = all_extracted_text
+        
+        preview = all_extracted_text[:500] + ("..." if len(all_extracted_text) > 500 else "")
         return {
             "case_text_preview": preview,
-            "chunk_count": len(chunks),
-            "ready": True
+            "chunk_count": len(all_chunks),
+            "ready": True,
+            "case_validation": validation_result.model_dump()
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

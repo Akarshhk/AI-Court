@@ -27,7 +27,9 @@ function App() {
   
   // Upload State
   const [caseMode, setCaseMode] = useState('demo'); // 'demo' | 'upload'
-  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadFiles, setUploadFiles] = useState([]);
+  const [uploadValidation, setUploadValidation] = useState(null);
+  const [forceProceed, setForceProceed] = useState(false);
   const [uploadStatus, setUploadStatus] = useState('idle'); // 'idle' | 'uploading' | 'success' | 'error'
   const [uploadPreview, setUploadPreview] = useState('');
   const [uploadChunkCount, setUploadChunkCount] = useState(0);
@@ -200,21 +202,36 @@ function App() {
     setActiveChunkIds([]);
     setRejectedChunkIds([]);
     setCaseMode('demo');
-    setUploadFile(null);
+    setUploadFiles([]);
+    setUploadValidation(null);
+    setForceProceed(false);
     setUploadStatus('idle');
     setUploadPreview('');
     setUploadChunkCount(0);
     setUploadError('');
   };
 
-  const handleFileUpload = async (file) => {
-    if (!file) return;
-    setUploadFile(file);
+  const handleFileUpload = async (files, append = false) => {
+    const fileArray = Array.from(files);
+    if (!fileArray || fileArray.length === 0) return;
+    
+    // We must use functional state update or get the latest state since uploadFiles might be stale here if we don't depend on it,
+    // but we can just use the previous state.
+    setUploadFiles((prevFiles) => {
+      const newFiles = append ? [...prevFiles, ...fileArray] : fileArray;
+      
+      // Move the upload logic to a separate function to avoid stale closures, or just execute it here with newFiles
+      performUpload(newFiles);
+      return newFiles;
+    });
+  };
+
+  const performUpload = async (fileArray) => {
     setUploadStatus('uploading');
     setUploadError('');
     
     const formData = new FormData();
-    formData.append('file', file);
+    fileArray.forEach(file => formData.append('files', file));
     
     try {
       const response = await fetch('http://localhost:8000/case/upload', {
@@ -229,6 +246,8 @@ function App() {
       
       setUploadPreview(data.case_text_preview);
       setUploadChunkCount(data.chunk_count);
+      setUploadValidation(data.case_validation);
+      setForceProceed(false);
       setUploadStatus('success');
     } catch (err) {
       setUploadError(err.message);
@@ -298,8 +317,9 @@ function App() {
                       <p className="text-xs text-zinc-500 mb-4">Accepts .txt, .pdf, or .docx (under 5MB)</p>
                       <input 
                         type="file" 
+                        multiple
                         accept=".txt,.pdf,.docx"
-                        onChange={(e) => handleFileUpload(e.target.files[0])}
+                        onChange={(e) => handleFileUpload(e.target.files)}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         title="Upload a document"
                       />
@@ -322,7 +342,7 @@ function App() {
                       <div className="flex items-center justify-between mb-3 border-b border-zinc-800 pb-3">
                         <div className="flex items-center gap-2 text-zinc-300 font-medium">
                           <FileText className="w-5 h-5 text-emerald-400" />
-                          <span className="truncate max-w-[200px]">{uploadFile?.name}</span>
+                          <span className="truncate max-w-[200px]">{uploadFiles.length === 1 ? uploadFiles[0].name : `${uploadFiles.length} files`}</span>
                         </div>
                         <div className="text-xs bg-emerald-950 text-emerald-400 px-2 py-1 rounded border border-emerald-900">
                           {uploadChunkCount} chunks loaded
@@ -334,33 +354,83 @@ function App() {
                           {uploadPreview}
                         </p>
                       </div>
-                      <button 
-                        onClick={() => {
-                          setUploadStatus('idle');
-                          setUploadFile(null);
-                        }}
-                        className="mt-3 text-xs text-zinc-500 hover:text-zinc-300 self-center"
-                      >
-                        Upload a different file
-                      </button>
+                      <div className="flex gap-4 mt-4 self-center">
+                        <div>
+                          <input 
+                            type="file" 
+                            multiple
+                            accept=".txt,.pdf,.docx"
+                            onChange={(e) => handleFileUpload(e.target.files, true)}
+                            id="add-more-files"
+                            className="hidden"
+                          />
+                          <label htmlFor="add-more-files" className="text-xs text-zinc-300 bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded cursor-pointer transition-colors">
+                            Add more files
+                          </label>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            setUploadStatus('idle');
+                            setUploadFiles([]);
+                            setUploadValidation(null);
+                            setForceProceed(false);
+                          }}
+                          className="text-xs text-red-400/70 hover:text-red-400 px-3 py-1.5 transition-colors"
+                        >
+                          Clear all files
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
             </div>
 
-            <button 
-              onClick={handleStart}
-              disabled={caseMode === 'upload' && uploadStatus !== 'success'}
-              className={`px-8 py-4 rounded-full font-bold flex items-center gap-2 transition-all shadow-lg shadow-white/10 ${
-                caseMode === 'upload' && uploadStatus !== 'success'
-                  ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed opacity-50 shadow-none'
-                  : 'bg-zinc-100 text-zinc-950 hover:bg-white hover:scale-105 active:scale-95'
-              }`}
-            >
-              <Play className="w-5 h-5 fill-current" />
-              Begin Trial Simulation
-            </button>
+            {caseMode === 'upload' && uploadStatus === 'success' && uploadValidation && (!uploadValidation.is_valid_case || uploadValidation.confidence < 0.5) && !forceProceed ? (
+              <div className="bg-amber-900/30 border border-amber-500/50 rounded-lg p-4 mt-6 text-left w-full max-w-md mx-auto shadow-lg shadow-black/20">
+                <div className="flex items-start gap-3">
+                  <div className="text-amber-400 mt-0.5 text-xl">⚠️</div>
+                  <div>
+                    <h3 className="text-amber-400 font-bold text-sm mb-1">Invalid Case Document</h3>
+                    <p className="text-amber-200/80 text-xs mb-3 leading-relaxed">
+                      This document doesn't appear to describe a legal case or dispute (detected: '{uploadValidation.detected_subject || 'unknown'}'). AI Courtroom simulates adversarial legal proceedings — running it on unrelated content may produce meaningless results.
+                    </p>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setForceProceed(true)}
+                        className="text-xs bg-amber-900/50 hover:bg-amber-800 text-amber-200 px-3 py-2 rounded font-medium transition-colors border border-amber-700/50"
+                      >
+                        Proceed Anyway
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setUploadStatus('idle');
+                          setUploadFiles([]);
+                          setUploadValidation(null);
+                          setForceProceed(false);
+                        }}
+                        className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-2 rounded font-medium transition-colors border border-zinc-700"
+                      >
+                        Upload a Different File
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <button 
+                onClick={handleStart}
+                disabled={caseMode === 'upload' && uploadStatus !== 'success'}
+                className={`px-8 py-4 rounded-full font-bold flex items-center gap-2 transition-all shadow-lg shadow-white/10 ${
+                  caseMode === 'upload' && uploadStatus !== 'success'
+                    ? 'bg-zinc-700 text-zinc-500 cursor-not-allowed opacity-50 shadow-none'
+                    : 'bg-zinc-100 text-zinc-950 hover:bg-white hover:scale-105 active:scale-95'
+                }`}
+              >
+                <Play className="w-5 h-5 fill-current" />
+                Begin Trial Simulation
+              </button>
+            )}
           </div>
         </div>
       )}
