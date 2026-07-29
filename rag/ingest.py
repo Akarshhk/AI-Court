@@ -10,12 +10,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from interfaces import Chunk
 
 import re
+
 def tokenize(text: str) -> List[str]:
     return re.findall(r'\w+', text.lower())
 
 from typing import List, Dict, Tuple
 
 def _build_store_from_chunks(chunks: List[str]) -> Tuple[List[Chunk], Dict[str, float], List[Dict[str, float]]]:
+    from rag.retrieve import reset_surfaced_chunks
+    reset_surfaced_chunks()
     store: List[Chunk] = []
     idf: Dict[str, float] = {}
     tfidf_vectors: List[Dict[str, float]] = []

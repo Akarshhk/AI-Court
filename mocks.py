@@ -3,7 +3,10 @@ import random
 from typing import List, Optional
 from interfaces import Chunk, Citation, AgentOutput, ValidationResult
 
-async def retrieve(query: str, k: int = 3) -> List[Chunk]:
+def reset_surfaced_chunks():
+    pass
+
+async def retrieve(query: str, store: List[Chunk], idf: dict, tfidf_vectors: list, k: int = 3) -> List[Chunk]:
     """Mock retrieval returning fake chunks."""
     await asyncio.sleep(0.1)  # Simulate network latency
     chunks = []

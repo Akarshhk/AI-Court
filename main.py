@@ -7,7 +7,8 @@ from interfaces import AgentOutput
 from case import get_case_text
 from rag.ingest import ingest_case
 
-def simple_event_hook(event_name: str, payload: AgentOutput | dict):
+from typing import Union
+def simple_event_hook(event_name: str, payload: Union[AgentOutput, dict]):
     """Callback to print live trial events."""
     if event_name == "phase_change":
         print(f"\n[{'='*10} PHASE CHANGE: {payload.get('phase', '').upper()} {'='*10}]")
@@ -20,10 +21,10 @@ async def main(omit_fact_idx: int = None):
     
     case_text = get_case_text(omit_fact_idx)
     # Ingest the case document into our vector store
-    ingest_case(case_text)
+    rag_state = ingest_case(case_text)
     
     # Run trial end-to-end with the event hook
-    state = await run_trial(case_text, on_event=simple_event_hook)
+    state = await run_trial(case_text, rag_state, on_event=simple_event_hook)
     
     print("\n\n" + "="*40)
     print("TRIAL COMPLETE - FULL TRANSCRIPT:")

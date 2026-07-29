@@ -1,6 +1,7 @@
 import re
+from typing import List
 
-def chunk_generic(text: str) -> list[str]:
+def chunk_generic(text: str) -> List[str]:
     """
     Splits text into chunks of roughly 300-800 characters.
     1. Splits on paragraph boundaries.
@@ -56,8 +57,9 @@ def chunk_generic(text: str) -> list[str]:
         
     chunks = [c for c in merged_chunks if c.strip()]
     
-    # Cap at 60 chunks
-    while len(chunks) > 60:
+    # Cap based on size: 1 chunk per ~500 chars, min 60, max 250
+    cap = min(250, max(60, len(text) // 500))
+    while len(chunks) > cap:
         # Find the pair of adjacent chunks with the smallest combined length
         min_combined = float('inf')
         min_idx = 0
